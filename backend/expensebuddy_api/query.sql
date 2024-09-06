@@ -16,7 +16,7 @@ CREATE TABLE expenses (
     'id' INTEGER PRIMARY KEY AUTOINCREMENT,
     'name' varchar(255),
     'value' REAL,
-    'data' DATE,
+    'date' DATE,
     'fk_user' INTEGER,
     FOREIGN KEY (fk_user) REFERENCES users(id)
 );
@@ -33,6 +33,8 @@ CREATE TABLE members (
 CREATE TABLE debts(
     'id' INTEGER PRIMARY KEY AUTOINCREMENT,
     'fk_member' INTEGER,
+    'fk_expense' INTEGER,
     'payed' boolean,
-    FOREIGN KEY (fk_member) REFERENCES members(id)
+    FOREIGN KEY (fk_member) REFERENCES members(id),
+    FOREIGN KEY (fk_expense) REFERENCES expenses(id)
 );
