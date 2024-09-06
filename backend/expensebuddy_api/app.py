@@ -31,12 +31,11 @@ login_manager = LoginManager(app)
 dati_note_spese = []
 
 
-@app.route('/scanPhoto' , methods=['POST'])
+@app.route('/scan_photo', methods=['POST'])
+@login_required
 def scan_photo():
-    
     file = request.files['file']
-
-
+    
     if file.filename == '':
         return {"status": "error"}
 
@@ -57,40 +56,34 @@ def scan_photo():
         data = json.loads(json_data)
         # Print the total amount
         date = str(data['predictions'][0]['date']['iso'])
-        totalAmount = str(data['predictions'][0]['total']['amount'])
-        #encode in json
-        data = {"date": date, "totalAmount": totalAmount}
-        #remove the image
+        total_amount = str(data['predictions'][0]['total']['amount'])
+        # Encode in json
+        data = {"date": date, "total_amount": total_amount}
+        # Remove the image
         os.remove(filepath)
         return jsonify(data)
 
 
-@app.route("/totalExpensesMonthly", methods=['GET'])
+@app.route("/total_expense_monthly", methods=['GET'])
+@login_required
 def get_total_expense_monthly():
-    #if 'user' not in session:
-        #return {"status": "error"}
-    #else:
-        #id = session['user']
-    id = 1
+    id = current_user.id
     db = sq.connect("mydb.db")
     cursor = db.cursor()
-    query = "SELECT ROUND(SUM(value), 2) FROM expenses WHERE fk_user=" + str(id) + " and STRFTIME('%m-%Y', CURRENT_DATE) = STRFTIME('%m-%Y', date)";
+    query = "SELECT ROUND(SUM(value), 2) FROM expenses WHERE fk_user=" + str(id) + " and STRFTIME('%m-%Y', CURRENT_DATE) = STRFTIME('%m-%Y', date);"
     cursor.execute(query)
     data = cursor.fetchall()
     db.close()
     return jsonify(data)
 
-@app.route("/addExpense", methods=['POST'])
-def addExpense():
-    #if 'user' not in session:
-        #return {"status": "error"}
-    #else:
+@app.route("/add_expense", methods=['POST'])
+@login_required
+def add_expense():
     data = request.json
     name = data["name"]
     value = data["value"]
     date = data["date"]
-    #id = session['user']
-    id = 1
+    id = current_user.id
     db = sq.connect("mydb.db")
     cursor = db.cursor()
     cursor.execute("INSERT INTO expenses (name, value, date, fk_user) VALUES (?, ?, ?, ?)", (name, value, date, id))
@@ -99,13 +92,10 @@ def addExpense():
     return {"status": "ok"}
 
 
-@app.route("/totalExpensesYearly", methods=['GET'])
+@app.route("/total_expenses_yearly", methods=['GET'])
+@login_required
 def get_total_expense_yearly():
-    #if 'user' not in session:
-     #   return {"status": "error"}
-    #else:
-    #id = session['user']
-    id = 1
+    id = current_user.id
     db = sq.connect("mydb.db")
     cursor = db.cursor()
     query = "SELECT ROUND(SUM(value), 2) FROM expenses WHERE fk_user=" + str(id) + " and STRFTIME('%Y', CURRENT_DATE) = STRFTIME('%Y', date);"
@@ -114,30 +104,22 @@ def get_total_expense_yearly():
     db.close()
     return jsonify(data)
 
-@app.route("/totalExpensesbyYearandMonth", methods=['GET'])
+@app.route("/total_expenses_by_year_and_month", methods=['GET'])
+@login_required
 def get_total_expense_by_year_and_month():
-    #if 'user' not in session:
-        #return {"status": "error"}
-    #else:
-        #id = session['user']
-    id = 1
+    id = current_user.id
     db = sq.connect("mydb.db")
     cursor = db.cursor()
-    query = "Select STRFTIME('%m', date) as month, STRFTIME('%Y', date) as year,  ROUND(SUM(value), 2) as total from expenses where fk_user=" + str(id) + " group by year, month;"
+    query = "SELECT STRFTIME('%m', date) as month, STRFTIME('%Y', date) as year, ROUND(SUM(value), 2) as total FROM expenses WHERE fk_user=" + str(id) + " GROUP BY year, month;"
     cursor.execute(query)
     data = cursor.fetchall()
     db.close()
     return jsonify(data)
 
-
-
-@app.route("/totalExpenses", methods=['GET'])
+@app.route("/total_expenses", methods=['GET'])
+@login_required
 def get_total_expense():
-    #if 'user' not in session:
-        #return {"status": "error"}
-    #else:
-        #id = session['user']
-    id = 1
+    id = current_user.id
     db = sq.connect("mydb.db")
     cursor = db.cursor()
     query = "SELECT ROUND(SUM(value), 2) FROM expenses WHERE fk_user=" + str(id) + ";"
@@ -146,13 +128,10 @@ def get_total_expense():
     db.close()
     return jsonify(data)
 
-@app.route("/numberExpenses", methods=['GET'])
+@app.route("/number_expenses", methods=['GET'])
+@login_required
 def get_number_expense():
-    #if 'user' not in session:
-        #return {"status": "error"}
-    #else:
-        #id = session['user']
-    id = 1
+    id = current_user.id
     db = sq.connect("mydb.db")
     cursor = db.cursor()
     query = "SELECT COUNT(*) FROM expenses WHERE fk_user=" + str(id) + ";"
@@ -161,78 +140,61 @@ def get_number_expense():
     db.close()
     return jsonify(data)
 
-@app.route("/lastExpenses", methods=['GET'])
+@app.route("/last_expenses", methods=['GET'])
+@login_required
 def get_last_expense():
-    #if 'user' not in session:
-        #return {"status": "error"}
-    #else:
-        #id = session['user']
-        id = 1
-        db = sq.connect("mydb.db")
-        cursor = db.cursor()
-        query = "SELECT expenses.name, value, date FROM expenses WHERE expenses.fk_user="+str(id)+" ORDER BY date DESC LIMIT 7;"
-        cursor.execute(query)
-        data = cursor.fetchall()
-        db.close()
-        return jsonify(data)
+    id = current_user.id
+    db = sq.connect("mydb.db")
+    cursor = db.cursor()
+    query = "SELECT expenses.name, value, date FROM expenses WHERE expenses.fk_user=" + str(id) + " ORDER BY date DESC LIMIT 7;"
+    cursor.execute(query)
+    data = cursor.fetchall()
+    db.close()
+    return jsonify(data)
     
-
-@app.route("/viewAll", methods=['GET'])
+@app.route("/view_all", methods=['GET'])
+@login_required
 def get_all_expense():
-    #if 'user' not in session:
-        #return {"status": "error"}
-    #else:
-        #id = session['user']
-        id = 1
-        db = sq.connect("mydb.db")
-        cursor = db.cursor()
-        query = "SELECT name, value, date FROM expenses WHERE fk_user="+str(id)+"   Order by date DESC;"
-        cursor.execute(query)
-        data = cursor.fetchall()
-        db.close()
-        #lista note speses
-        #dati_note_spese = data
-        return jsonify(data)
-    
-
-#api per calcolare debito totale utente per ogni gruppo (user id)
-@app.route("/getTotalDebtbyGroup", methods=['GET'])
-def get_total_debt_group():
-    id = 2
+    id = current_user.id
     db = sq.connect("mydb.db")
     cursor = db.cursor()
-    query = "SELECT groups.id, groups.name, B.value FROM groups join (SELECT members.fk_group, ROUND(SUM(value), 2) as value FROM debts join (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value FROM debts join expenses on expenses.id=debts.fk_expense GROUP by expenses.id) as A on A.id=debts.fk_expense join members on members.id=debts.fk_member WHERE debts.payed=false and members.fk_user="+str(id)+" group by members.fk_group) as B on B.fk_group=groups.id"
+    query = "SELECT name, value, date FROM expenses WHERE fk_user=" + str(id) + " ORDER BY date DESC;"
     cursor.execute(query)
     data = cursor.fetchall()
     db.close()
-        #lista note speses
-        #dati_note_spese = data
     return jsonify(data)
 
-#api per calcolare debito totale utente per ogni persona nel gruppo (user id)
+@app.route("/get_total_debt_by_group", methods=['GET'])
+@login_required
+def get_total_debt_by_group():
+    id = current_user.id
+    db = sq.connect("mydb.db")
+    cursor = db.cursor()
+    query = "SELECT groups.id, groups.name, B.value FROM groups JOIN (SELECT members.fk_group, ROUND(SUM(value), 2) as value FROM debts JOIN (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value FROM debts JOIN expenses ON expenses.id=debts.fk_expense GROUP BY expenses.id) as A ON A.id=debts.fk_expense JOIN members ON members.id=debts.fk_member WHERE debts.payed=false AND members.fk_user=" + str(id) + " GROUP BY members.fk_group) as B ON B.fk_group=groups.id"
+    cursor.execute(query)
+    data = cursor.fetchall()
+    db.close()
+    return jsonify(data)
 
-@app.route("/getTotalDebt", methods=['GET'])
+@app.route("/get_total_debt", methods=['GET'])
+@login_required
 def get_total_debt():
-    id = 1
+    id = current_user.id
     db = sq.connect("mydb.db")
     cursor = db.cursor()
-    query = "SELECT COALESCE(ROUND(SUM(value), 2),0) - (SELECT COALESCE(SUM(value),0) as value FROM debts join (SELECT expenses.id, ROUND(value/(COUNT(*)+1), 2) as value FROM expenses join debts on debts.fk_expense=expenses.id where expenses.fk_user="+str(id)+" GROUP BY expenses.id) as A on A.id=debts.fk_expense WHERE payed=false)as value FROM debts join (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value FROM debts join expenses on expenses.id=debts.fk_expense GROUP by expenses.id) as A on A.id=debts.fk_expense join members on members.id=debts.fk_member WHERE debts.payed=false and members.fk_user="+str(id)
+    query = "SELECT COALESCE(ROUND(SUM(value), 2), 0) - (SELECT COALESCE(SUM(value), 0) as value FROM debts JOIN (SELECT expenses.id, ROUND(value/(COUNT(*)+1), 2) as value FROM expenses JOIN debts ON debts.fk_expense=expenses.id WHERE expenses.fk_user=" + str(id) + " GROUP BY expenses.id) as A ON A.id=debts.fk_expense WHERE payed=false) as value FROM debts JOIN (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value FROM debts JOIN expenses ON expenses.id=debts.fk_expense GROUP BY expenses.id) as A ON A.id=debts.fk_expense JOIN members ON members.id=debts.fk_member WHERE debts.payed=false AND members.fk_user=" + str(id)
     cursor.execute(query)
     data = cursor.fetchall()
     db.close()
-        #lista note speses
-        #dati_note_spese = data
     return jsonify(data)
 
 
-
+#GESTIONE USERS
 @login_manager.user_loader
 def load_user(id):
     user=get_user_byid(id)
     return user
 
-
-#GESTIONE USERS
 @app.route('/get_current_user', methods=['GET'])
 @login_required
 def get_user():
