@@ -8,7 +8,7 @@ CREATE TABLE users (
 );
 
 CREATE TABLE groups (
-    'id' INTEGER PRIMARY KEY AUTOINCREMENT,
+    'id' BLOB PRIMARY KEY,
     'name' varchar(255)
 );
 
@@ -23,8 +23,9 @@ CREATE TABLE expenses (
 
 CREATE TABLE members (
     'id' INTEGER PRIMARY KEY AUTOINCREMENT,
+    'admin' boolean default 0,
     'fk_user' INTEGER,
-    'fk_group' INTEGER,
+    'fk_group' BLOB,
     FOREIGN KEY (fk_user) REFERENCES users(id),
     FOREIGN KEY (fk_group) REFERENCES groups(id)
 );
@@ -35,6 +36,3 @@ CREATE TABLE debts(
     'payed' boolean,
     FOREIGN KEY (fk_member) REFERENCES members(id)
 );
-
-SELECT * FROM user
-DROP TABLE user
