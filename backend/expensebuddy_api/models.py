@@ -39,3 +39,20 @@ class Group:
             'id': self.id,
             'name': self.name,
         }
+    
+class resultGroup:
+    def __init__(self, id, name, credit, debit, diff):
+        self.id = id
+        self.name = name
+        self.credit = credit
+        self.debit = debit,
+        self.diff = diff
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'credit': self.credit,
+            'debit': self.debit,
+            'diff': self.diff
+        }
