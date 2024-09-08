@@ -1,9 +1,15 @@
-import React from 'react'
+import React from "react";
+import { useContext } from "react";
+import { GroupContext } from "../contexts/GroupContext";
 
 const Home = () => {
-  return (
-    <div>DIO CANAGLIA</div>
-  )
-}
+  const { currentGroup, setCurrentGroup } = useContext(GroupContext);
 
-export default Home
+  return (
+    <div>
+      <p>{currentGroup}</p>
+    </div>
+  );
+};
+
+export default Home;
