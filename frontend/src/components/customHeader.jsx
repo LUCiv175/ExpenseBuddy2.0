@@ -27,7 +27,7 @@ const Navbar = ({ onGroupChange }) => {
             className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded"
           >
             {
-              allGroups.length > 0 && currentGroup !== null
+              allGroups.length > 0 && currentGroup !== null && allGroups[currentGroup]
                 ? allGroups[currentGroup].name // Mostra il nome del gruppo selezionato
                 : "Select a group" // Mostra "Select a group" se nessun gruppo è selezionato
             }{" "}

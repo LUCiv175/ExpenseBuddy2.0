@@ -4,6 +4,7 @@ import { GroupContext } from "../contexts/GroupContext";
 
 const Home = () => {
   const { currentGroup, setCurrentGroup } = useContext(GroupContext);
+  
 
   return (
     <div>
