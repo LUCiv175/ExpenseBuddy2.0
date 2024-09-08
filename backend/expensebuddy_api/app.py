@@ -3,6 +3,7 @@ from models import resultGroup
 from flask import Flask, request, jsonify
 from flask_login import LoginManager,login_user, logout_user, current_user, login_required
 from db import (
+    get_group_byid,
     get_user_byid,
     get_user_byusername,
     get_user_byemail,
@@ -272,6 +273,53 @@ def pay_debt():
 
     return {"status": "updated"}
 
+
+#QUERY per Inserimento
+@app.route("/get_members", methods=['POST'])
+@login_required
+def get_members():
+    id = current_user.id  # Get the current user's ID
+    data = request.get_json()  # Parse the JSON data from the request
+
+    if 'fk_group' not in data:
+        return {"status": "error", "message": "Missing 'fk_group' field"}, 400
+
+    group = data['fk_group']
+
+    try:
+        if isinstance(group, str):
+            id_bytes = uuid.UUID(group).bytes  # Convert string to UUID bytes
+        else:
+            id_bytes = group
+    except ValueError:
+        return {"status": "error", "message": "Invalid 'fk_group' format"}, 400
+
+    # Check if the group exists
+    if get_group_byid(id_bytes) is None:
+        return {"status": "error", "message": "Group not found"}, 404
+
+    # Validate input type
+    if not isinstance(group, str):
+        return {"status": "error", "message": "Invalid input type"}, 400
+
+    # Connect to the database
+    db = sq.connect("mydb.db")
+    cursor = db.cursor()
+
+    # Use parameterized query to avoid SQL injection
+    query = """
+        SELECT members.id, users.id, users.username 
+        FROM members 
+        JOIN users ON members.fk_user = users.id 
+        WHERE users.id != ? AND members.fk_group = ?;
+    """
+    
+    cursor.execute(query, (id, id_bytes))  # Safely execute the query
+    data = cursor.fetchall()
+
+    db.close()
+
+    return jsonify(data)
 
 
 
