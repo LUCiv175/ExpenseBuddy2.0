@@ -1,4 +1,5 @@
 import uuid
+from models import resultGroup
 from flask import Flask, request, jsonify
 from flask_login import LoginManager,login_user, logout_user, current_user, login_required
 from db import (
@@ -83,6 +84,9 @@ def add_expense():
     name = data["name"]
     value = data["value"]
     date = data["date"]
+    if not isinstance(name, str) or not isinstance(value, float) or not isinstance(date, str):
+                return {"status": "error", "message": "Invalid input type"}, 400
+
     id = current_user.id
     db = sq.connect("mydb.db")
     cursor = db.cursor()
@@ -158,7 +162,7 @@ def get_all_expense():
     id = current_user.id
     db = sq.connect("mydb.db")
     cursor = db.cursor()
-    query = "SELECT name, value, date FROM expenses WHERE fk_user=" + str(id) + " ORDER BY date DESC;"
+    query = "SELECT expenses.id, expenses.name, expenses.value, expenses.date, expenses.fk_user, a.value FROM expenses full join (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value, name, date FROM debts JOIN expenses ON expenses.id=debts.fk_expense GROUP BY expenses.id) as A on A.id = expenses.id WHERE expenses.fk_user="+str(id)+" or a.id in(SELECT debts.fk_expense FROM members inner join debts on debts.fk_member=members.id where fk_user="+str(id)+") ORDER BY expenses.date DESC;"
     cursor.execute(query)
     data = cursor.fetchall()
     db.close()
@@ -170,11 +174,20 @@ def get_total_debt_by_group():
     id = current_user.id
     db = sq.connect("mydb.db")
     cursor = db.cursor()
-    query = "SELECT groups.id, groups.name, B.value FROM groups JOIN (SELECT members.fk_group, ROUND(SUM(value), 2) as value FROM debts JOIN (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value FROM debts JOIN expenses ON expenses.id=debts.fk_expense GROUP BY expenses.id) as A ON A.id=debts.fk_expense JOIN members ON members.id=debts.fk_member WHERE debts.payed=false AND members.fk_user=" + str(id) + " GROUP BY members.fk_group) as B ON B.fk_group=groups.id"
+    query = "SELECT groups.id, groups.name, credit, debit, credit-debit as diff FROM groups JOIN (SELECT fk_group, SUM(value) as credit, 0.0 as debit FROM debts JOIN (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value, fk_user FROM debts JOIN expenses ON expenses.id=debts.fk_expense JOIN (SELECT fk_expense, Count(*) as numero FROM debts WHERE payed=false GROUP BY debts.fk_expense) as C ON C.fk_expense=expenses.id WHERE expenses.fk_user="+str(id)+" GROUP BY expenses.id) AS E ON E.id = debts.fk_expense JOIN members ON members.id = debts.fk_member WHERE debts.payed = false AND E.fk_user = "+str(id)+" GROUP BY fk_group UNION SELECT members.fk_group, 0.0 as credit, ROUND(SUM(A.value), 2) AS debit FROM debts JOIN (SELECT expenses.id, ROUND(expenses.value / (COUNT(*) + 1), 2) AS value FROM debts JOIN expenses ON expenses.id = debts.fk_expense GROUP BY expenses.id) AS A ON A.id = debts.fk_expense JOIN members ON members.id = debts.fk_member WHERE debts.payed = false AND members.fk_user = "+str(id)+" GROUP BY members.fk_group) AS B ON B.fk_group = groups.id;"
     cursor.execute(query)
     data = cursor.fetchall()
     db.close()
-    return jsonify(data)
+    # Se non ci sono risultati, ritorna None
+    if not data:
+        return None
+        
+        # Trasforma i risultati in una lista di dizionari
+    result = []
+    for row in data:
+        result.append(resultGroup(id=uuid.UUID(bytes=row[0]), name=row[1], credit=row[2], debit=row[3], diff=row[4]).to_dict())
+        
+    return result
 
 @app.route("/get_total_debt", methods=['GET'])
 @login_required
@@ -187,6 +200,79 @@ def get_total_debt():
     data = cursor.fetchall()
     db.close()
     return jsonify(data)
+
+@app.route("/view_debt", methods=['POST'])
+@login_required
+def view_debt():
+    data = request.json
+    member = data["fk_member"]
+    user = data["fk_user"]
+    db = sq.connect("mydb.db")
+    cursor = db.cursor()
+    query="SELECT sum(value) FROM debts join (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value FROM debts JOIN expenses ON expenses.id=debts.fk_expense GROUP BY expenses.id) as A on A.id=fk_expense where fk_member= ? and payed=0 and fk_expense in (SELECT id FROM expenses where fk_user = ?) group by fk_member"
+    cursor.execute(query, (member, user))
+    data = cursor.fetchall()
+    db.commit()
+    db.close()
+    return jsonify(data)
+
+#GESTIONE DEBITI
+@app.route("/add_debt", methods=['POST'])
+@login_required
+def add_debt():
+    data = request.json
+    member = data["fk_member"]
+    expense = data["fk_expense"]
+    done = False
+
+    if not isinstance(member, int) or not isinstance(expense, int):
+            return {"status": "error", "message": "Invalid input type"}, 400
+
+    db = sq.connect("mydb.db")
+    cursor = db.cursor()
+    cursor.execute("INSERT INTO debts (fk_member, fk_expense, payed) VALUES (?, ?, ?)", (member, expense, done))
+    db.commit()
+    db.close()
+    return {"status": "ok"}
+
+@app.route("/pay_debt", methods=['POST'])
+@login_required
+def pay_debt():
+    try:
+        data = request.json
+        member = data["fk_member"]
+        user = data["fk_user"]
+
+        # Verifica che member e user siano valori numerici
+        if not isinstance(member, int) or not isinstance(user, int):
+            return {"status": "error", "message": "Invalid input type"}, 400
+
+        db = sq.connect("mydb.db")
+        cursor = db.cursor()
+
+        # Usa una query parametrizzata per evitare iniezioni SQL
+        query = """
+        UPDATE debts 
+        SET payed = 1 
+        WHERE fk_member = ? 
+        AND fk_expense IN (SELECT id FROM expenses WHERE fk_user = ?)
+        """
+        
+        # Esegui la query con i parametri corretti
+        cursor.execute(query, (member, user))
+        db.commit()
+
+    except Exception as e:
+        # Gestione degli errori
+        db.rollback()  # Rollback in caso di errore
+        return {"status": "error", "message": str(e)}, 500
+
+    finally:
+        db.close()  # Assicurati che la connessione venga sempre chiusa
+
+    return {"status": "updated"}
+
+
 
 
 #GESTIONE USERS
@@ -331,4 +417,4 @@ def quit_group():
         return jsonify({'message': 'Missing parameters'}), 400
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run()

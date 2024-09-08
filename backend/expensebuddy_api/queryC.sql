@@ -100,15 +100,131 @@ SELECT SUM(value) as value FROM debts join (SELECT expenses.id, ROUND(value/(COU
 
 DROP TABLE expenses
 
-UPDATE debts SET payed=false where id=3
+UPDATE debts SET payed=true where id=2
 
 
+SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value, name, date FROM debts JOIN expenses ON expenses.id=debts.fk_expense GROUP BY expenses.id
 ---da  vedere
-SELECT groups.id, groups.name, B.value FROM groups join (SELECT members.fk_group, ROUND(SUM(value), 2) as value FROM debts join (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value FROM debts join expenses on expenses.id=debts.fk_expense GROUP by expenses.id) as A on A.id=debts.fk_expense join members on members.id=debts.fk_member WHERE debts.payed=false and members.fk_user=2 group by members.fk_group) as B on B.fk_group=groups.id
+
+SELECT groups.id, groups.name, B.value FROM groups join (SELECT members.fk_group, ROUND(SUM(value), 2) as value FROM debts join (SELECT expenses.id, COALESCE(ROUND(expenses.value/(COUNT(*)+1), 0)-COALESCE(D.value, 0), 2) as value FROM debts join expenses on expenses.id=debts.fk_expense GROUP by expenses.id) as A on A.id=debts.fk_expense join members on members.id=debts.fk_member join (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1)*C.numero, 2) as value FROM debts join expenses on expenses.id=debts.fk_expense join (SELECT fk_expense, Count(*) as numero FROM debts where payed=false GROUP by debts.fk_expense) as C on C.fk_expense= expenses.id where expenses.fk_user=2 GROUP by expenses.id) as D on D.id=debts.fk_expense WHERE debts.payed=false and members.fk_user=2 group by members.fk_group) as B on B.fk_group=groups.id
+
+SELECT * FROM debts join (SELECT expenses.id, COALESCE(ROUND(expenses.value/(COUNT(*)+1), 0)-COALESCE(D.value, 0), 2) as value FROM debts join expenses on expenses.id=debts.fk_expense GROUP by expenses.id) as A on A.id=debts.fk_expense join members on members.id=debts.fk_member join (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1)*C.numero, 2) as value FROM debts join expenses on expenses.id=debts.fk_expense join ((SELECT fk_expense, Count(*) as numero FROM debts where payed=false GROUP by debts.fk_expense) as C on C.fk_expense=expenses.id where expenses.fk_user=2 GROUP by expenses.id) as D on D.id=debts.fk_expense WHERE debts.payed=false and members.fk_user=2
 
 
 
+SELECT fk_expense, Count(*) as numero FROM debts where payed=false GROUP by debts.fk_expense
+SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1)*C.numero, 2) as value FROM debts join expenses on expenses.id=debts.fk_expense join (SELECT fk_expense, Count(*) as numero FROM debts where payed=false GROUP by debts.fk_expense) as C on C.fk_expense= expenses.id where expenses.fk_user=1 GROUP by expenses.id
 
+SELECT expenses.id, expenses.name, expenses.value, expenses.date, expenses.fk_user, a.value FROM expenses full join (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value, name, date FROM debts JOIN expenses ON expenses.id=debts.fk_expense GROUP BY expenses.id) as A on A.id = expenses.id WHERE expenses.fk_user=1 or a.id in(SELECT debts.fk_expense FROM members inner join debts on debts.fk_member=members.id where fk_user=1);
 
 
 SELECT ROUND(SUM(value), 2) FROM expenses WHERE fk_user=1 and STRFTIME('%m-%Y', CURRENT_DATE) = STRFTIME('%m-%Y', data);
+
+
+
+SELECT 
+    groups.id, 
+    groups.name, 
+    B.value 
+FROM 
+    groups 
+JOIN (
+    SELECT 
+        members.fk_group, 
+        ROUND(SUM(A.value), 2) AS value 
+    FROM 
+        debts 
+    JOIN (
+        SELECT 
+            expenses.id, 
+            ROUND(expenses.value / (COUNT(*) + 1), 2) AS value 
+        FROM 
+            debts 
+        JOIN 
+            expenses ON expenses.id = debts.fk_expense 
+        GROUP BY 
+            expenses.id
+    ) AS A ON A.id = debts.fk_expense 
+    JOIN members ON members.id = debts.fk_member 
+    WHERE 
+        debts.payed = false 
+    AND 
+        members.fk_user = 1
+    GROUP BY 
+        members.fk_group
+) AS B ON B.fk_group = groups.id;
+
+
+SELECT 
+    groups.id, 
+    groups.name, 
+    credit,
+    debit,
+    credit-debit as diff
+FROM 
+    groups 
+JOIN (
+    SELECT fk_group, SUM(value) as credit, 0.0 as debit FROM debts 
+    JOIN (
+        SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value, fk_user FROM debts join expenses on expenses.id=debts.fk_expense join (SELECT fk_expense, Count(*) as numero FROM debts where payed=false GROUP by debts.fk_expense) as C on C.fk_expense= expenses.id where expenses.fk_user=2 GROUP by expenses.id
+    ) AS E ON E.id = debts.fk_expense 
+    JOIN members ON members.id = debts.fk_member 
+    WHERE 
+        debts.payed = false 
+    AND 
+        E.fk_user = 2
+        GROUP BY fk_group
+    
+
+UNION
+    SELECT 
+        members.fk_group,
+        0.0 as credit,
+        ROUND(SUM(A.value), 2) AS debit
+    FROM 
+        debts 
+    JOIN (
+        SELECT 
+            expenses.id, 
+            ROUND(expenses.value / (COUNT(*) + 1), 2) AS value 
+        FROM 
+            debts 
+        JOIN 
+            expenses ON expenses.id = debts.fk_expense 
+        GROUP BY 
+            expenses.id
+    ) AS A ON A.id = debts.fk_expense 
+    JOIN members ON members.id = debts.fk_member 
+    WHERE 
+        debts.payed = false 
+    AND 
+        members.fk_user = 2
+    GROUP BY 
+        members.fk_group
+) AS B ON B.fk_group = groups.id
+
+
+
+
+
+
+
+SELECT fk_group, SUM(value) FROM debts 
+    JOIN (
+        SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value, fk_user FROM debts join expenses on expenses.id=debts.fk_expense join (SELECT fk_expense, Count(*) as numero FROM debts where payed=false GROUP by debts.fk_expense) as C on C.fk_expense= expenses.id where expenses.fk_user=1 GROUP by expenses.id
+    ) AS A ON A.id = debts.fk_expense 
+    JOIN members ON members.id = debts.fk_member 
+    WHERE 
+        debts.payed = false 
+    AND 
+        A.fk_user = 1
+        GROUP BY fk_group
+
+
+
+SELECT groups.id, groups.name, B.value FROM groups JOIN (SELECT members.fk_group, ROUND(SUM(A.value), 2) AS value FROM debts JOIN (SELECT expenses.id, ROUND(expenses.value / (COUNT(*) + 1), 2) AS value FROM debts JOIN expenses ON expenses.id = debts.fk_expense GROUP BY expenses.id) AS A ON A.id = debts.fk_expense JOIN members ON members.id = debts.fk_member WHERE debts.payed = false AND members.fk_user = 3 GROUP BY members.fk_group) AS B ON B.fk_group = groups.id;
+SELECT groups.id, groups.name, B.value FROM groups JOIN (SELECT members.fk_group, ROUND(SUM(A.value), 2) AS value FROM debts JOIN (SELECT expenses.id, ROUND(expenses.value / (COUNT(*) + 1) * C.numero, 2) AS value FROM debts JOIN expenses ON expenses.id = debts.fk_expense JOIN (SELECT fk_expense, COUNT(*) AS numero FROM debts WHERE payed = false GROUP BY debts.fk_expense) AS C ON C.fk_expense = expenses.id WHERE expenses.fk_user = 2 GROUP BY expenses.id) AS A ON A.id = debts.fk_expense JOIN members ON members.id = debts.fk_member WHERE debts.payed = false AND members.fk_user = 2 GROUP BY members.fk_group) AS B ON B.fk_group = groups.id;
+
+
+
+SELECT groups.id, groups.name, credit, debit, credit-debit as diff FROM groups JOIN (SELECT fk_group, SUM(value) as credit, 0.0 as debit FROM debts JOIN (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value, fk_user FROM debts JOIN expenses ON expenses.id=debts.fk_expense JOIN (SELECT fk_expense, Count(*) as numero FROM debts WHERE payed=false GROUP BY debts.fk_expense) as C ON C.fk_expense=expenses.id WHERE expenses.fk_user=3 GROUP BY expenses.id) AS E ON E.id = debts.fk_expense JOIN members ON members.id = debts.fk_member WHERE debts.payed = false AND E.fk_user = 3 GROUP BY fk_group UNION SELECT members.fk_group, 0.0 as credit, ROUND(SUM(A.value), 2) AS debit FROM debts JOIN (SELECT expenses.id, ROUND(expenses.value / (COUNT(*) + 1), 2) AS value FROM debts JOIN expenses ON expenses.id = debts.fk_expense GROUP BY expenses.id) AS A ON A.id = debts.fk_expense JOIN members ON members.id = debts.fk_member WHERE debts.payed = false AND members.fk_user = 3 GROUP BY members.fk_group) AS B ON B.fk_group = groups.id;
