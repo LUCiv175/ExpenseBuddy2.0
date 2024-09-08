@@ -1,6 +1,7 @@
 import uuid
 from models import resultGroup
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from flask_login import LoginManager,login_user, logout_user, current_user, login_required
 from db import (
     get_group_byid,
@@ -28,6 +29,8 @@ app = Flask(__name__)
 app.secret_key = '73bd852143af96b381144e4a359c969'
 app.debug=True
 login_manager = LoginManager(app)
+
+CORS(app)
 
 
 dati_note_spese = []

@@ -1,8 +1,10 @@
 import React, { useState, useContext } from "react";
 import { GroupContext } from "../contexts/GroupContext";
+import { useCookies } from "react-cookie";
 
-const Navbar = ({ onGroupChange }) => {
+const Navbar = () => {
   const { currentGroup, setCurrentGroup, allGroups } = useContext(GroupContext);
+  const [cookies, setCookie] = useCookies(["selectedGroup"]);
   // Esegui il codice solo una volta all'avvio
 
   const [isOpen, setIsOpen] = useState(false);
@@ -14,7 +16,7 @@ const Navbar = ({ onGroupChange }) => {
   const handleSelectGroup = (groupIndex) => {
     setCurrentGroup(groupIndex);
     setIsOpen(false); // Chiudi il dropdown una volta selezionato
-    onGroupChange(groupIndex); // Aggiorna il cookie con il gruppo selezionato
+    setCookie("selectedGroup", groupIndex, { path: "/" });
   };
 
   return (
@@ -27,7 +29,9 @@ const Navbar = ({ onGroupChange }) => {
             className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded"
           >
             {
-              allGroups.length > 0 && currentGroup !== null && allGroups[currentGroup]
+              allGroups.length > 0 &&
+              currentGroup !== null &&
+              allGroups[currentGroup]
                 ? allGroups[currentGroup].name // Mostra il nome del gruppo selezionato
                 : "Select a group" // Mostra "Select a group" se nessun gruppo è selezionato
             }{" "}
