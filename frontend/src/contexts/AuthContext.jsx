@@ -8,8 +8,8 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const url = process.env.REACT_APP_API_URL;
-  const [user, setUser] = useState(null);
-  /* useEffect(() => {
+  const [user, setUser] = useState("franco");
+  useEffect(() => {
     const get_user = async () => {
       try {
         const response = await fetch(`${url}/get_current_user`, {
@@ -33,8 +33,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     get_user();
-  }, []); */
-
+  }, []);
   const login = async (username, password) => {
     return await fetch(`${url}/login`, {
       method: "POST",
@@ -111,7 +110,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const value = {
-    user,
+    user: user,
     onLogin: login,
     onLogout: logout,
     onChangePassword: changePassword,

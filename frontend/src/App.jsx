@@ -8,24 +8,22 @@ import { CookiesProvider, useCookies } from "react-cookie";
 
 export default function App() {
   const [cookies, setCookie] = useCookies(["selectedGroup"]);
-  const { user } = useAuth();
-
+  const user = useAuth();
+  console.log(user);
   return (
     <CookiesProvider>
       <AuthProvider>
         <GroupContextProvider selectedCookieGroup={cookies.selectedGroup}>
           <BrowserRouter>
             <Routes>
-              {user ? (
+              {
                 <Route path="/" element={<Layout />}>
                   <Route index element={<Home />} />
                   {/* <Route path="blogs" element={<Blogs />} />
                     <Route path="contact" element={<Contact />} />
                     <Route path="*" element={<NoPage />} /> */}
                 </Route>
-              ) : (
-                <Route path="*" element={<Login />} />
-              )}
+              }
             </Routes>
           </BrowserRouter>
         </GroupContextProvider>
