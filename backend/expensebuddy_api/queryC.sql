@@ -156,23 +156,23 @@ JOIN (
 
 
 SELECT 
-    groups.id, 
-    groups.name, 
-    credit,
-    debit,
-    credit-debit as diff
+    F.id, 
+    F.name, 
+    COALESCE(credit, 0.0) as credit,
+    COALESCE(debit, 0.0) as debit,
+    COALESCE(credit-debit, 0.0) as diff
 FROM 
-    groups 
-JOIN (
+    (SELECT groups.id, groups.name FROM groups JOIN members ON members.fk_group=groups.id WHERE members.fk_user=1) as F
+left JOIN (
     SELECT fk_group, SUM(value) as credit, 0.0 as debit FROM debts 
     JOIN (
-        SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value, fk_user FROM debts join expenses on expenses.id=debts.fk_expense join (SELECT fk_expense, Count(*) as numero FROM debts where payed=false GROUP by debts.fk_expense) as C on C.fk_expense= expenses.id where expenses.fk_user=2 GROUP by expenses.id
+        SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value, fk_user FROM debts join expenses on expenses.id=debts.fk_expense join (SELECT fk_expense, Count(*) as numero FROM debts where payed=false GROUP by debts.fk_expense) as C on C.fk_expense= expenses.id where expenses.fk_user=1 GROUP by expenses.id
     ) AS E ON E.id = debts.fk_expense 
     JOIN members ON members.id = debts.fk_member 
     WHERE 
         debts.payed = false 
     AND 
-        E.fk_user = 2
+        E.fk_user = 1
         GROUP BY fk_group
     
 
@@ -198,10 +198,10 @@ UNION
     WHERE 
         debts.payed = false 
     AND 
-        members.fk_user = 2
+        members.fk_user = 1
     GROUP BY 
         members.fk_group
-) AS B ON B.fk_group = groups.id
+) AS B ON B.fk_group = F.id
 
 
 
@@ -227,4 +227,4 @@ SELECT groups.id, groups.name, B.value FROM groups JOIN (SELECT members.fk_group
 
 
 
-SELECT groups.id, groups.name, credit, debit, credit-debit as diff FROM groups JOIN (SELECT fk_group, SUM(value) as credit, 0.0 as debit FROM debts JOIN (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value, fk_user FROM debts JOIN expenses ON expenses.id=debts.fk_expense JOIN (SELECT fk_expense, Count(*) as numero FROM debts WHERE payed=false GROUP BY debts.fk_expense) as C ON C.fk_expense=expenses.id WHERE expenses.fk_user=3 GROUP BY expenses.id) AS E ON E.id = debts.fk_expense JOIN members ON members.id = debts.fk_member WHERE debts.payed = false AND E.fk_user = 3 GROUP BY fk_group UNION SELECT members.fk_group, 0.0 as credit, ROUND(SUM(A.value), 2) AS debit FROM debts JOIN (SELECT expenses.id, ROUND(expenses.value / (COUNT(*) + 1), 2) AS value FROM debts JOIN expenses ON expenses.id = debts.fk_expense GROUP BY expenses.id) AS A ON A.id = debts.fk_expense JOIN members ON members.id = debts.fk_member WHERE debts.payed = false AND members.fk_user = 3 GROUP BY members.fk_group) AS B ON B.fk_group = groups.id;
+SELECT groups.id, groups.name, credit, debit, credit-debit as diff FROM groups join (SELECT fk_group, SUM(value) as credit, 0.0 as debit FROM debts right JOIN (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value, fk_user FROM debts JOIN expenses ON expenses.id=debts.fk_expense JOIN (SELECT fk_expense, Count(*) as numero FROM debts WHERE payed=false GROUP BY debts.fk_expense) as C ON C.fk_expense=expenses.id WHERE expenses.fk_user=2 GROUP BY expenses.id) AS E ON E.id = debts.fk_expense JOIN members ON members.id = debts.fk_member WHERE debts.payed = false AND E.fk_user = 2 GROUP BY fk_group UNION SELECT members.fk_group, 0.0 as credit, ROUND(SUM(A.value), 2) AS debit FROM debts JOIN (SELECT expenses.id, ROUND(expenses.value / (COUNT(*) + 1), 2) AS value FROM debts JOIN expenses ON expenses.id = debts.fk_expense GROUP BY expenses.id) AS A ON A.id = debts.fk_expense JOIN members ON members.id = debts.fk_member WHERE debts.payed = false AND members.fk_user = 2 GROUP BY members.fk_group) AS B ON B.fk_group = groups.id;

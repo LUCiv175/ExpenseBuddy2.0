@@ -30,7 +30,7 @@ app.secret_key = '73bd852143af96b381144e4a359c969'
 app.debug=True
 login_manager = LoginManager(app)
 
-CORS(app)
+CORS(app, origins="*")
 
 
 dati_note_spese = []
@@ -178,7 +178,7 @@ def get_total_debt_by_group():
     id = current_user.id
     db = sq.connect("mydb.db")
     cursor = db.cursor()
-    query = "SELECT groups.id, groups.name, credit, debit, credit-debit as diff FROM groups JOIN (SELECT fk_group, SUM(value) as credit, 0.0 as debit FROM debts JOIN (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value, fk_user FROM debts JOIN expenses ON expenses.id=debts.fk_expense JOIN (SELECT fk_expense, Count(*) as numero FROM debts WHERE payed=false GROUP BY debts.fk_expense) as C ON C.fk_expense=expenses.id WHERE expenses.fk_user="+str(id)+" GROUP BY expenses.id) AS E ON E.id = debts.fk_expense JOIN members ON members.id = debts.fk_member WHERE debts.payed = false AND E.fk_user = "+str(id)+" GROUP BY fk_group UNION SELECT members.fk_group, 0.0 as credit, ROUND(SUM(A.value), 2) AS debit FROM debts JOIN (SELECT expenses.id, ROUND(expenses.value / (COUNT(*) + 1), 2) AS value FROM debts JOIN expenses ON expenses.id = debts.fk_expense GROUP BY expenses.id) AS A ON A.id = debts.fk_expense JOIN members ON members.id = debts.fk_member WHERE debts.payed = false AND members.fk_user = "+str(id)+" GROUP BY members.fk_group) AS B ON B.fk_group = groups.id;"
+    query = "SELECT F.id, F.name, COALESCE(credit, 0.0) as credit, COALESCE(debit, 0.0) as debit, COALESCE(credit-debit, 0.0) as diff FROM (SELECT groups.id, groups.name FROM groups JOIN members ON members.fk_group=groups.id WHERE members.fk_user="+str(id)+") as F left JOIN (SELECT fk_group, SUM(value) as credit, 0.0 as debit FROM debts JOIN (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value, fk_user FROM debts JOIN expenses ON expenses.id=debts.fk_expense JOIN (SELECT fk_expense, Count(*) as numero FROM debts WHERE payed=false GROUP BY debts.fk_expense) as C ON C.fk_expense=expenses.id WHERE expenses.fk_user="+str(id)+" GROUP BY expenses.id) AS E ON E.id = debts.fk_expense JOIN members ON members.id = debts.fk_member WHERE debts.payed = false AND E.fk_user = "+str(id)+" GROUP BY fk_group UNION SELECT members.fk_group, 0.0 as credit, ROUND(SUM(A.value), 2) AS debit FROM debts JOIN (SELECT expenses.id, ROUND(expenses.value / (COUNT(*) + 1), 2) AS value FROM debts JOIN expenses ON expenses.id = debts.fk_expense GROUP BY expenses.id) AS A ON A.id = debts.fk_expense JOIN members ON members.id = debts.fk_member WHERE debts.payed = false AND members.fk_user = "+str(id)+" GROUP BY members.fk_group) AS B ON B.fk_group = F.id;"
     cursor.execute(query)
     data = cursor.fetchall()
     db.close()
@@ -190,7 +190,7 @@ def get_total_debt_by_group():
     result = []
     for row in data:
         result.append(resultGroup(id=uuid.UUID(bytes=row[0]), name=row[1], credit=row[2], debit=row[3], diff=row[4]).to_dict())
-        
+
     return result
 
 @app.route("/get_total_debt", methods=['GET'])
