@@ -166,7 +166,7 @@ def get_all_expense():
     id = current_user.id
     db = sq.connect("mydb.db")
     cursor = db.cursor()
-    query = "SELECT expenses.id, expenses.name, expenses.value, expenses.date, expenses.fk_user, a.value FROM expenses full join (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value, name, date FROM debts JOIN expenses ON expenses.id=debts.fk_expense GROUP BY expenses.id) as A on A.id = expenses.id WHERE expenses.fk_user="+str(id)+" or a.id in(SELECT debts.fk_expense FROM members inner join debts on debts.fk_member=members.id where fk_user="+str(id)+") ORDER BY expenses.date DESC;"
+    query = "SELECT F.id, F.name, F.value, F.date, users.username, F.debt FROM users join (SELECT expenses.id, expenses.name, expenses.value, expenses.date, expenses.fk_user, a.value as debt FROM expenses full join (SELECT expenses.id, ROUND(expenses.value/(COUNT(*)+1), 2) as value, name, date FROM debts JOIN expenses ON expenses.id=debts.fk_expense GROUP BY expenses.id) as A on A.id = expenses.id WHERE expenses.fk_user="+str(id)+" or a.id in(SELECT debts.fk_expense FROM members inner join debts on debts.fk_member=members.id where fk_user="+str(id)+") ORDER BY expenses.date DESC) as F on F.fk_user=users.id;"
     cursor.execute(query)
     data = cursor.fetchall()
     db.close()

@@ -12,7 +12,7 @@ const DebtCard = ({ creditor, amount, dueDate, description }) => {
         <div className="bg-white shadow-md rounded-lg py-1 px-5">
             <div className=" border-gray-200 py-2 my-2">
                 <p className="text-black-600 text-xs">
-                    Importo dovuto: 
+                    Bilancio: 
                 </p>
                 <p className={`text-xl ${amount < 0 ? 'text-red-400' : 'text-green-500'}`}>
                 <strong className="font-bold">{formatCurrency(amount)}</strong></p>
